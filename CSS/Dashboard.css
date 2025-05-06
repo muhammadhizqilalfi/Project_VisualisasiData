@@ -1,0 +1,148 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #E3F2FD;
+    margin: 0;
+    padding: 20px;
+    
+}
+
+.header {
+    background-color: #2B5288;
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.header h1 {
+    margin: 0;
+    font-size: 28px;
+    color: #FFFFFF;
+    text-align: center;
+}
+
+.header p {
+    margin-top: 8px;
+    color: #FFFF;
+    font-size: 16px;
+    text-align: center;
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.card {
+    background-color: #7EBADA;
+    border-radius: 8px;
+    padding: 24px;
+    box-shadow: 0 2px 4px rgba(7, 157, 207, 0.05);
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.chart-icon {
+    width: 60px;
+    height: 60px;
+    background-color: #e6f0ff;
+    border-radius: 50%;
+    margin-bottom: 16px;
+}
+
+.card h2 {
+    margin: 0 0 8px 0;
+    font-size: 18px;
+    color: #ffffff;
+}
+
+.card p {
+    margin: 0;
+    color: #666;
+    font-size: 14px;
+}
+
+.card a {
+    display: inline-block;
+    margin-top: 12px;
+    color: #4285f4;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.card a:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.team-container {
+    background-color: #E3F2FD;
+    padding: 40px 20px;
+    text-align: center;
+    margin-top: 40px;
+    border-radius: 8px;
+}
+
+.team-container h2 {
+    font-size: 24px;
+    color: #2B5288;
+    margin-bottom: 30px;
+    font-weight: bold;
+}
+
+.team-grid {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    flex-wrap: wrap;
+}
+
+.team-member {
+    text-align: center;
+}
+
+.team-member img {
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 3px solid #64a8cc;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.team-member p {
+    margin-top: 8px;
+    font-size: 14px;
+    color: #333;
+}
+
+.back-button-container {
+    text-align: center;
+    margin-top: 30px;
+}
+
+.back-button {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #2B5288;
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.back-button:hover {
+    background-color: #1f3e6b;
+}

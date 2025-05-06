@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Rata-rata depresi berdasarkan Jam kerja/studi</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      height: 100vh;
+      margin: 0;
+      background-color: #fdfdfc;
+    }
+    .tooltip {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.75);
+      color: white;
+      padding: 6px 10px;
+      border-radius: 5px;
+      pointer-events: none;
+      font-size: 12px;
+    }
+    svg {
+      background-color: #f5f5f5;
+    }
+  </style>
+</head>
+<body>
+  <h2>Rata-rata depresi berdasarkan Jam kerja/studi</h2>
+  <svg width="900" height="500"></svg>
+  <div class="tooltip" style="opacity:0;"></div>
+
+  <script>
+    d3.csv("Data/Student Depression Dataset.csv").then(data => {
+      // Filter hanya data dengan Depression 0 atau 1
+      data = data.filter(d =>
+        d["Work/Study Hours"] !== "" &&
+        (d["Depression"] === "0" || d["Depression"] === "1")
+      );
+
+      data.forEach(d => {
+        d.hours = +d["Work/Study Hours"];
+        d.depression = +d["Depression"];
+      });
+
+      const grouped = Array.from(
+        d3.group(data, d => d.hours),
+        ([hours, values]) => ({
+          hours: +hours,
+          avgDepression: d3.mean(values, d => d.depression)
+        })
+      ).sort((a, b) => a.hours - b.hours);
+
+      const svg = d3.select("svg"),
+            margin = { top: 40, right: 60, bottom: 60, left: 120 },
+            width = +svg.attr("width") - margin.left - margin.right,
+            height = +svg.attr("height") - margin.top - margin.bottom;
+
+      const chart = svg.append("g")
+                       .attr("transform", `translate(${margin.left},${margin.top})`);
+
+      const x = d3.scaleBand()
+                  .domain(grouped.map(d => d.hours))
+                  .range([0, width])
+                  .padding(0.2);
+
+      const y = d3.scaleLinear()
+                  .domain([0, 1])
+                  .range([height, 0]);
+
+      // ✅ Warna berdasarkan tingkat depresi (semakin tinggi = semakin merah pekat)
+      const color = d3.scaleSequential()
+                      .domain([0, 1]) // 0 = putih, 1 = merah tua
+                      .interpolator(d3.interpolateReds);
+
+      chart.append("g")
+           .attr("transform", `translate(0, ${height})`)
+           .call(d3.axisBottom(x).tickFormat(d => d + " jam"))
+           .selectAll("text")
+           .attr("transform", "rotate(-45)")
+           .style("text-anchor", "end");
+
+      chart.append("g")
+           .call(d3.axisLeft(y).ticks(5).tickFormat(d => (d * 100).toFixed(0) + "%"));
+
+      const tooltip = d3.select(".tooltip");
+
+      chart.selectAll(".bar")
+           .data(grouped)
+           .enter()
+           .append("rect")
+           .attr("class", "bar")
+           .attr("x", d => x(d.hours))
+           .attr("y", d => y(d.avgDepression))
+           .attr("width", x.bandwidth())
+           .attr("height", d => height - y(d.avgDepression))
+           .attr("fill", d => color(d.avgDepression))
+           .on("mouseover", (event, d) => {
+              tooltip.transition().duration(200).style("opacity", 1);
+              tooltip.html(`Jam: ${d.hours}<br/>Rata-rata Depresi: ${(d.avgDepression * 100).toFixed(1)}%`)
+                     .style("left", (event.pageX + 10) + "px")
+                     .style("top", (event.pageY - 28) + "px");
+           })
+           .on("mouseout", () => {
+              tooltip.transition().duration(500).style("opacity", 0);
+           });
+
+      // Tambahkan label sumbu X
+      svg.append("text")
+        .attr("x", margin.left + width / 2)
+        .attr("y", height + margin.top + 50)
+        .attr("text-anchor", "middle")
+        .style("font-size", "13px")
+        .style("font-weight", "bold")
+        .text("Jam Kerja/Belajar");
+
+      // Label untuk sumbu Y
+      svg.append("text")
+        .attr("transform", `translate(40, ${margin.top + height / 2}) rotate(-90)`)
+        .attr("text-anchor", "middle")
+        .style("font-size", "13px")
+        .style("font-weight", "bold")
+        .text("Rata-rata Depresi");
+
+    });
+  </script>
+</body>
+</html>

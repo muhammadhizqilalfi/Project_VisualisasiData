@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tingkat Depresi Berdasarkan Kebiasaan Diet</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      font-family: sans-serif;
+    }
+
+    svg {
+      background-color: #fff;
+    }
+
+    .tooltip {
+      position: absolute;
+      text-align: center;
+      padding: 6px;
+      font-size: 12px;
+      background: lightsteelblue;
+      border: 1px solid gray;
+      border-radius: 4px;
+      pointer-events: none;
+      opacity: 0;
+    }
+
+    #info {
+      margin-top: 10px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h3>Tingkat Depresi Berdasarkan Kebiasaan Diet</h3>
+  <div id="chart"></div>
+  <div class="tooltip" id="tooltip"></div>
+  <div id="info"></div>
+
+  <script>
+    const margin = { top: 40, right: 30, bottom: 50, left: 60 };
+    const width = 700 - margin.left - margin.right;
+    const height = 400 - margin.top - margin.bottom;
+
+    const svg = d3.select("#chart")
+      .append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom)
+      .append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    const tooltip = d3.select("#tooltip");
+
+    d3.csv("Data/Student Depression Dataset.csv").then(data => {
+      const categories = ["Unhealthy", "Moderate", "Healthy"];
+      const depressionTypes = ["Ya"];
+      const colors = {
+        "Unhealthy": "#e57373",  // Red for unhealthy
+        "Moderate": "#81c784",   // Green for moderate
+        "Healthy": "#64b5f6"     // Blue for healthy
+      };
+
+      // Format dan filter data
+      const groupedData = d3.rollup(
+        data,
+        v => {
+          return {
+            "Ya": new Set(v.filter(d =>
+              d["Depression"] && d["Depression"].toLowerCase() !== "no"
+            ).filter(d => d["id"]).map(d => d["id"])).size
+          };
+        },
+        d => d["Dietary Habits"]
+      );
+
+      const formattedData = categories.map(cat => {
+        const entry = groupedData.get(cat) || { "Ya": 0 };
+        return { category: cat, ...entry };
+      });
+
+      const x0 = d3.scaleBand()
+        .domain(categories)
+        .range([0, width])
+        .padding(0.2);
+
+      const x1 = d3.scaleBand()
+        .domain(depressionTypes)
+        .range([0, x0.bandwidth()])
+        .padding(0.05);
+
+      const y = d3.scaleLinear()
+        .domain([0, 12000])  // Set y-axis limit to 12,000
+        .range([height, 0]);
+
+      svg.append("g")
+        .selectAll("g")
+        .data(formattedData)
+        .join("g")
+        .attr("transform", d => `translate(${x0(d.category)},0)`)
+        .selectAll("rect")
+        .data(d => depressionTypes.map(key => ({ key, value: d[key], category: d.category })))
+        .join("rect")
+        .attr("x", d => x1(d.key))
+        .attr("y", d => y(d.value))
+        .attr("width", x1.bandwidth())
+        .attr("height", d => height - y(d.value))
+        .attr("fill", d => colors[d.category])  // Use color based on category
+        .on("mouseover", (event, d) => {
+          tooltip.transition().duration(200).style("opacity", 1);
+          tooltip
+            .html(`Kebiasaan: ${d.category}<br>Depresi: ${d.key}<br>Jumlah: ${d.value}`)
+            .style("left", (event.pageX + 10) + "px")
+            .style("top", (event.pageY - 28) + "px");
+        })
+        .on("mouseout", () => {
+          tooltip.transition().duration(300).style("opacity", 0);
+        });
+
+      // Sumbu
+      svg.append("g")
+        .attr("transform", `translate(0,${height})`)
+        .call(d3.axisBottom(x0));
+
+      svg.append("g")
+        .call(d3.axisLeft(y));
+
+      // Label sumbu
+      svg.append("text")
+        .attr("x", width / 2)
+        .attr("y", height + 40)
+        .attr("text-anchor", "middle")
+        .text("Kebiasaan Diet");
+
+      svg.append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("y", -45)
+        .attr("x", -height / 2)
+        .attr("text-anchor", "middle")
+        .text("Jumlah Mahasiswa");
+
+      // ➕ Legenda
+      const legend = svg.append("g")
+        .attr("transform", `translate(${width - 100},0)`);
+
+      categories.forEach((cat, i) => {
+        const legendRow = legend.append("g")
+          .attr("transform", `translate(0,${i * 20})`);
+
+        legendRow.append("rect")
+          .attr("width", 15)
+          .attr("height", 15)
+          .attr("fill", colors[cat]);
+
+        legendRow.append("text")
+          .attr("x", 20)
+          .attr("y", 12)
+          .text(cat)
+          .style("font-size", "12px");
+      });
+
+      // ➕ Tambahkan total mahasiswa yang mengalami depresi
+      const totalDepressed = new Set(data
+        .filter(d => d["Depression"] && d["Depression"].toLowerCase() !== "no")
+        .map(d => d["id"])).size;
+
+      d3.select("#info")
+        .text(`Jumlah total mahasiswa yang mengalami depresi: ${totalDepressed}`);
+    });
+  </script>
+</body>
+</html>

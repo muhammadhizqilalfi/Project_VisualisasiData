@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualisasi Kepuasan Belajar dan Status Depresi</title>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <style>
+        /* Gaya untuk kontainer scatter plot */
+        body {
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center; /* Memastikan grafik berada di tengah secara horizontal */
+            align-items: center; /* Memastikan grafik berada di tengah secara vertikal */
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+            background-color: #fdfdfc;
+        }
+
+        #scatter-plot {
+            width: 80%; /* Atur lebar kontainer agar tidak terlalu besar */
+            height: 600px; /* Menyesuaikan tinggi area visualisasi */
+            border: 1px solid #ccc; /* Border ringan di sekitar plot */
+            margin: 0 auto; /* Memusatkan kontainer */
+        }
+
+        /* Gaya untuk tooltip */
+        #tooltip {
+            position: absolute;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.7); /* Latar belakang hitam transparan */
+            color: white;
+            border-radius: 5px;
+            padding: 10px;
+            opacity: 0; /* Menyembunyikan tooltip secara default */
+            pointer-events: none; /* Menghindari interaksi dengan tooltip */
+        }
+
+        /* Gaya untuk heading */
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            font-family: Arial, sans-serif;
+            font-size: 24px;
+        }
+
+        /* Additional styles for better visualization */
+        .axis-label {
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Hubungan antara Kepuasan Belajar dan Status Depresi Mahasiswa</h2>
+    <div id="scatter-plot"></div> <!-- Area untuk menampilkan scatter plot -->
+    <div id="tooltip"></div> <!-- Tooltip untuk menampilkan informasi lebih lanjut -->
+    
+    <script>
+        // Fungsi untuk memuat data dari folder data
+        function loadData() {
+            d3.csv("Data/Student Depression Dataset.csv").then(function(data) {
+                // Pastikan data dimodifikasi setelah dimuat
+                data.forEach(function(d) {
+                    // Pastikan Study Satisfaction dan Depression adalah angka
+                    d.kepuasan = +d["Study Satisfaction"];
+                    d.depresi = +d["Depression"];
+                    d.id = d["id"] || "N/A"; // Pastikan ada kolom ID
+
+                    // Cek apakah nilai untuk Depression valid (0 atau 1)
+                    if (d.depresi !== 0 && d.depresi !== 1) {
+                        console.log("Data tidak valid", d); // Debugging: mencetak data yang tidak valid
+                    }
+
+                    // Cek jika ada nilai kosong di kolom kepuasan atau depresi
+                    if (isNaN(d.kepuasan) || isNaN(d.depresi)) {
+                        console.log("Data kosong atau tidak valid ditemukan", d);
+                    }
+                });
+
+                // Periksa distribusi kepuasan belajar berdasarkan status depresi
+                checkDistribution(data);
+
+                // Setelah data siap, panggil fungsi untuk membuat visualisasi
+                createVisualization(data); 
+            }).catch(function(error) {
+                console.error('Error loading data:', error);
+                document.getElementById('scatter-plot').innerHTML = 
+                    '<div style="color: red; text-align: center; padding: 20px;">Error loading data. Please check console for details.</div>';
+            });
+        }
+
+        // Fungsi untuk memeriksa distribusi data (rata-rata kepuasan belajar)
+        function checkDistribution(data) {
+            const nonDepressed = data.filter(d => d.depresi === 0);
+            const depressed = data.filter(d => d.depresi === 1);
+
+            // Log distribusi nilai kepuasan belajar
+            console.log("Distribusi Kepuasan Belajar (Tidak Depresi):", nonDepressed.map(d => d.kepuasan));
+            console.log("Distribusi Kepuasan Belajar (Depresi):", depressed.map(d => d.kepuasan));
+
+            const avgNonDepressed = d3.mean(nonDepressed, d => d.kepuasan);
+            const avgDepressed = d3.mean(depressed, d => d.kepuasan);
+
+            console.log("Rata-rata Kepuasan Belajar (Tidak Depresi):", avgNonDepressed);
+            console.log("Rata-rata Kepuasan Belajar (Depresi):", avgDepressed);
+        }
+
+        // Fungsi untuk membuat visualisasi
+        function createVisualization(data) {
+            // Pastikan data sudah ada sebelum membuat visualisasi
+            console.log(data); // Debugging: cek data yang dimuat
+            const margin = { top: 40, right: 30, bottom: 60, left: 70 };
+            const width = 800 - margin.left - margin.right;
+            const height = 500 - margin.top - margin.bottom;
+
+            const svg = d3.select("#scatter-plot")
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+
+            const x = d3.scaleLinear()
+                .domain([0, 5])  // Membatasi domain agar hanya menampilkan nilai dari 0 sampai 5
+                .range([0, width]);
+
+            const y = d3.scaleLinear()
+                .domain([0, 1])  // Membatasi sumbu Y hanya antara 0 dan 1
+                .range([height * 0.75, height * 0.25]); // hanya pakai sebagian area canvas
+
+            svg.append("g")
+                .attr("transform", `translate(0,${height})`)
+                .call(d3.axisBottom(x).ticks(6).tickValues([0, 1, 2, 3, 4, 5]));  // Memaksa sumbu x hanya menampilkan nilai 0, 1, 2, 3, 4, 5
+
+            svg.append("g")
+                .call(d3.axisLeft(y)
+                .tickValues([0, 1])  // Memaksa sumbu Y hanya menampilkan nilai 0 dan 1
+                .tickFormat(d => d === 0 ? "Tidak" : "Ya"));  // Menampilkan "Tidak" dan "Ya" pada sumbu Y
+
+            svg.append("text")
+                .attr("class", "axis-label")
+                .attr("x", width / 2)
+                .attr("y", height + 40)
+                .style("text-anchor", "middle")
+                .text("Kepuasan Belajar (0-5)");
+
+            svg.append("text")
+                .attr("class", "axis-label")
+                .attr("transform", "rotate(-90)")
+                .attr("x", -height / 2)
+                .attr("y", -50)
+                .style("text-anchor", "middle")
+                .text("Status Depresi (0 = Tidak Depresi 1 = Depresi)");
+
+            svg.append("g")
+                .attr("class", "grid")
+                .selectAll("line")
+                .data(x.ticks(10))
+                .enter()
+                .append("line")
+                .attr("x1", d => x(d))
+                .attr("y1", 0)
+                .attr("x2", d => x(d))
+                .attr("y2", height)
+                .attr("stroke", "#e0e0e0")
+                .attr("stroke-width", 1);
+
+            svg.append("g")
+                .attr("class", "grid")
+                .selectAll("line")
+                .data(y.ticks(2))
+                .enter()
+                .append("line")
+                .attr("x1", 0)
+                .attr("y1", d => y(d))
+                .attr("x2", width)
+                .attr("y2", d => y(d))
+                .attr("stroke", "#e0e0e0")
+                .attr("stroke-width", 1);
+
+            const tooltip = d3.select("#tooltip");
+
+            svg.selectAll("dot")
+                .data(data)
+                .enter()
+                .append("path")
+                .attr("d", d3.symbol().type(d3.symbolCross).size(100))
+                .attr("transform", d => `translate(${x(d.kepuasan)}, ${y(d.depresi)})`)
+                .attr("fill", d => d.depresi === 0 ? "green" : "red")
+                .attr("stroke", "none")
+                .on("mouseover", function(event, d) {
+                    tooltip.style("opacity", 1)
+                        .html(`Mahasiswa ID: ${d.id}<br>Kepuasan: ${d.kepuasan}<br>Status Depresi: ${d.depresi === 0 ? 'Tidak' : 'Ya'}`)
+                        .style("left", (event.pageX + 15) + "px")
+                        .style("top", (event.pageY - 30) + "px");
+                    d3.select(this).attr("opacity", 0.7);
+                })
+                .on("mouseout", function() {
+                    tooltip.style("opacity", 0);
+                    d3.select(this).attr("opacity", 1);
+                });
+        // Legend
+            const legend = svg.append("g")
+                .attr("transform", `translate(${width - 150}, 10)`);
+
+         // Legend untuk Tidak Depresi
+            legend.append("path")
+                .attr("d", d3.symbol().type(d3.symbolCross).size(100))
+                .attr("transform", `translate(0, 0)`)
+                .attr("fill", "green");
+
+            legend.append("text")
+                .attr("x", 15)
+                .attr("y", 5)
+                .text("Tidak Depresi")
+                .style("font-size", "12px")
+                .attr("alignment-baseline", "middle");
+
+        // Legend untuk Depresi
+            legend.append("path")
+                .attr("d", d3.symbol().type(d3.symbolCross).size(100))
+                .attr("transform", `translate(0, 20)`)
+                .attr("fill", "red");
+
+            legend.append("text")
+                .attr("x", 15)
+                .attr("y", 25)
+                .text("Depresi")
+                .style("font-size", "12px")
+                .attr("alignment-baseline", "middle");
+
+        }
+
+        // Inisialisasi ketika DOM telah dimuat
+        document.addEventListener("DOMContentLoaded", loadData);
+    </script>
+</body>
+</html>

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Scatter Plot Faktor Sosial vs Depresi (Gradasi)</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    h2 {
+      margin-bottom: 20px;
+    }
+
+    svg {
+      display: block;
+      margin: 0 auto;
+    }
+
+    .axis-label {
+      font-weight: bold;
+    }
+
+    .legend text {
+      font-size: 12px;
+    }
+
+    .tooltip {
+      position: absolute;
+      padding: 10px;
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      border-radius: 5px;
+      font-size: 12px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Scatter Plot Agregasi Faktor Sosial vs Rata-rata Depresi</h2>
+<svg width="800" height="500"></svg>
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+d3.csv("Data/Student Depression Dataset.csv").then(function(data) {
+
+  data.forEach(d => {
+    d["Academic Pressure"] = +d["Academic Pressure"];
+    d["Work Pressure"] = +d["Work Pressure"];
+    d["Study Satisfaction"] = +d["Study Satisfaction"];
+    d["Job Satisfaction"] = +d["Job Satisfaction"];
+    d["Financial Stress"] = +d["Financial Stress"];
+    d["Depression"] = +d["Depression"];
+  });
+
+  data.forEach(d => {
+    d.totalFactor = d["Academic Pressure"] + d["Work Pressure"] + d["Study Satisfaction"] +
+                    d["Job Satisfaction"] + d["Financial Stress"];
+  });
+
+  let grouped = d3.rollups(data, v => d3.mean(v, d => d.Depression), d => d.totalFactor);
+
+  let result = grouped.map(d => ({ totalFactor: +d[0], avgDepression: d[1] }))
+                      .sort((a,b) => a.totalFactor - b.totalFactor);
+
+  const svg = d3.select("svg"),
+        margin = {top: 50, right: 200, bottom: 60, left: 60},
+        width = +svg.attr("width") - margin.left - margin.right,
+        height = +svg.attr("height") - margin.top - margin.bottom;
+
+  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+  const x = d3.scaleLinear()
+              .domain(d3.extent(result, d => d.totalFactor))
+              .range([0, width]).nice();
+
+  const y = d3.scaleLinear()
+              .domain([0, 1])
+              .range([height, 0]);
+
+  const color = d3.scaleLinear()
+                  .domain([0, 1])
+                  .range(["#90caf9", "#0d47a1"]);
+
+  g.append("g")
+   .attr("transform", `translate(0,${height})`)
+   .call(d3.axisBottom(x));
+
+  g.append("g")
+   .call(d3.axisLeft(y));
+
+  svg.append("text")
+     .attr("x", width/2 + margin.left)
+     .attr("y", height + margin.top + 45)
+     .attr("text-anchor", "middle")
+     .attr("class", "axis-label")
+     .text("Total Skor Faktor Sosial");
+
+  svg.append("text")
+     .attr("x", -height/2 - margin.top)
+     .attr("y", 15)
+     .attr("transform", "rotate(-90)")
+     .attr("text-anchor", "middle")
+     .attr("class", "axis-label")
+     .text("Rata-rata Depresi");
+
+  const tooltip = d3.select("#tooltip");
+
+  // Titik-titik scatter
+  g.selectAll("circle")
+   .data(result)
+   .enter().append("circle")
+   .attr("cx", d => x(d.totalFactor))
+   .attr("cy", d => y(d.avgDepression))
+   .attr("r", 6)
+   .attr("fill", d => color(d.avgDepression))
+   .on("mouseover", (event, d) => {
+      tooltip.style("opacity", 1)
+             .html(`<strong>Total Faktor: </strong>${d.totalFactor}<br><strong>Rata-rata Depresi: </strong>${d.avgDepression.toFixed(2)}`)
+             .style("left", (event.pageX + 10) + "px")
+             .style("top", (event.pageY - 30) + "px");
+   })
+   .on("mouseout", () => tooltip.style("opacity", 0));
+
+  // Garis tren
+  const line = d3.line()
+                 .x(d => x(d.totalFactor))
+                 .y(d => y(d.avgDepression));
+
+  g.append("path")
+   .datum(result)
+   .attr("fill", "none")
+   .attr("stroke", "#f44336")
+   .attr("stroke-width", 2.5)
+   .attr("d", line);
+
+  // Legend gradasi
+  const defs = svg.append("defs");
+
+  const linearGradient = defs.append("linearGradient")
+    .attr("id", "gradLegend");
+
+  linearGradient.selectAll("stop")
+    .data([
+      {offset: "0%", color: "#90caf9"},
+      {offset: "100%", color: "#0d47a1"}
+    ])
+    .enter().append("stop")
+    .attr("offset", d => d.offset)
+    .attr("stop-color", d => d.color);
+
+  const legendWidth = 160, legendHeight = 12;
+
+  const legend = svg.append("g")
+    .attr("class", "legend")
+    .attr("transform", `translate(${width + margin.left + 20},${margin.top})`);
+
+  legend.append("rect")
+    .attr("width", legendWidth)
+    .attr("height", legendHeight)
+    .style("fill", "url(#gradLegend)");
+
+  const legendScale = d3.scaleLinear()
+    .domain([0, 1])
+    .range([0, legendWidth]);
+
+  const legendAxis = d3.axisBottom(legendScale)
+    .ticks(5)
+    .tickFormat(d3.format(".2f"));
+
+  legend.append("g")
+    .attr("transform", `translate(0,${legendHeight})`)
+    .call(legendAxis);
+
+  legend.append("text")
+    .attr("x", 0)
+    .attr("y", -8)
+    .text("Rata-rata Depresi");
+
+});
+</script>
+</body>
+</html>

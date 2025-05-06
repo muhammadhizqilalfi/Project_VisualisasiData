@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Korelasi Faktor Depresi Mahasiswa</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column; /* Menyusun elemen secara vertikal */
+      justify-content: center; /* Memastikan grafik berada di tengah */
+      align-items: center; /* Menyusun elemen di tengah secara horizontal */
+      height: 100vh; /* Menggunakan seluruh tinggi layar */
+      margin: 0;
+      background: #f9f9f9;
+    }
+
+    h2 {
+      margin-bottom: 20px; /* Memberikan jarak antara judul dan grafik */
+      text-align: center;
+    }
+
+    svg {
+      display: block;
+      margin: 0 auto; /* Memastikan grafik berada di tengah */
+    }
+
+    .bar { fill: steelblue; }
+    .bar:hover { fill: orange; }
+    .label { font-size: 12px; fill: #333; }
+
+    /* Tooltip styles */
+    .tooltip {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.75);
+      color: white;
+      padding: 6px 10px;
+      border-radius: 5px;
+      pointer-events: none;
+      font-size: 12px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+  </style>
+</head>
+<body>
+  <h2>Korelasi Faktor Depresi Mahasiswa</h2>
+  <svg id="chart" width="800" height="400"></svg>
+  <div class="tooltip" id="tooltip"></div> <!-- Tooltip div -->
+
+  <script>
+    function pearsonCorrelation(x, y) {
+      const n = x.length;
+      const sumX = d3.sum(x);
+      const sumY = d3.sum(y);
+      const sumXY = d3.sum(x.map((d, i) => d * y[i]));
+      const sumX2 = d3.sum(x.map(d => d * d));
+      const sumY2 = d3.sum(y.map(d => d * d));
+      const numerator = (n * sumXY) - (sumX * sumY);
+      const denominator = Math.sqrt(
+        (n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY)
+      );
+      return denominator === 0 ? 0 : numerator / denominator;
+    }
+
+    d3.csv("Data/Student Depression Dataset.csv").then(data => {
+      data.forEach(d => {
+        d["Academic Pressure"] = +d["Academic Pressure"];
+        d["Work Pressure"] = +d["Work Pressure"];
+        d["CGPA"] = +d["CGPA"];
+        d["Study Satisfaction"] = +d["Study Satisfaction"];
+        d["Job Satisfaction"] = +d["Job Satisfaction"];
+        d["Work/Study Hours"] = +d["Work/Study Hours"];
+        d["Financial Stress"] = +d["Financial Stress"];
+        d["Depression"] = +d["Depression"];
+      });
+
+      const factors = [
+        "Academic Pressure", "Work Pressure", "CGPA",
+        "Study Satisfaction", "Job Satisfaction",
+        "Work/Study Hours", "Financial Stress"
+      ];
+
+      const depression = data.map(d => d["Depression"]);
+
+      const korelasiData = factors.map(f => {
+        const values = data.map(d => d[f]);
+        const corr = pearsonCorrelation(values, depression);
+        return { faktor: f, korelasi: Math.abs(corr) };
+      }).sort((a, b) => d3.descending(a.korelasi, b.korelasi));
+
+      const svg = d3.select("#chart");
+      const width = +svg.attr("width") - 300;
+      const height = +svg.attr("height") - 100;
+      const margin = { top: 30, right: 50, bottom: 50, left: 200 }; // Meningkatkan margin kiri
+
+      const x = d3.scaleLinear()
+        .domain([0, d3.max(korelasiData, d => d.korelasi)])
+        .range([0, width]);
+
+      const y = d3.scaleBand()
+        .domain(korelasiData.map(d => d.faktor))
+        .range([0, height])
+        .padding(0.2);
+
+      const g = svg.append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
+
+      g.append("g")
+        .attr("transform", `translate(0,${height})`)
+        .call(d3.axisBottom(x).ticks(5));
+
+      g.append("g")
+        .call(d3.axisLeft(y));
+
+      g.selectAll(".bar")
+        .data(korelasiData)
+        .enter()
+        .append("rect")
+        .attr("class", "bar")
+        .attr("y", d => y(d.faktor))
+        .attr("height", y.bandwidth())
+        .attr("x", 0)
+        .attr("width", d => x(d.korelasi));
+
+      g.selectAll(".label")
+        .data(korelasiData)
+        .enter()
+        .append("text")
+        .attr("class", "label")
+        .attr("y", d => y(d.faktor) + y.bandwidth() / 1.6)
+        .attr("x", d => x(d.korelasi) + 5)
+        .text(d => d.korelasi.toFixed(2));
+
+      // Tambahkan label sumbu X
+      svg.append("text")
+        .attr("x", margin.left + width / 2)
+        .attr("y", height + margin.top + 40)
+        .attr("text-anchor", "middle")
+        .style("font-size", "13px")
+        .style("font-weight", "bold")
+        .text("Nilai Korelasi (Pearson)");
+
+      
+      // Label untuk sumbu Y
+      svg.append("text")
+        .attr("transform", `translate(-140, ${height / 2}) rotate(-90)`)
+        .attr("text-anchor", "middle")
+        .style("font-size", "13px")
+        .style("font-weight", "bold")
+        .text("Faktor Kesejahteraan Mental");
+
+
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Line Chart Durasi Tidur vs Depresi</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column; /* Menyusun elemen secara vertikal */
+      justify-content: center; /* Menjaga elemen tetap berada di tengah */
+      align-items: center; /* Menyusun elemen di tengah secara horizontal */
+      height: 100vh; /* Menggunakan seluruh tinggi layar */
+      margin: 0;
+    }
+
+    h2 {
+      margin-bottom: 20px; /* Memberikan jarak antara judul dan grafik */
+    }
+
+    #chart {
+      display: block; /* Agar SVG tidak menyebar */
+    }
+
+    .axis-label {
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .tooltip {
+      position: absolute;
+      padding: 8px;
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      border-radius: 5px;
+      font-size: 12px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Line Chart Durasi Tidur vs Persentase Depresi</h2>
+<div id="chart"></div>
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+  const margin = {top: 50, right: 50, bottom: 50, left: 60},
+        width = 700 - margin.left - margin.right,
+        height = 400 - margin.top - margin.bottom;
+
+  const svg = d3.select("#chart")
+                .append("svg")
+                .attr("width", width + margin.left + margin.right)
+                .attr("height", height + margin.top + margin.bottom)
+                .append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+
+  const tooltip = d3.select("#tooltip");
+
+  d3.csv("Data/Student Depression Dataset.csv").then(data => {
+    // Ambil kategori unik Sleep Duration
+    const categoryOrder = [...new Set(data.map(d => d["Sleep Duration"]))]
+                          .filter(d => d !== "") // buang kosong kalau ada
+                          .sort((a, b) => {
+                            const order = ["Less than 5 hours", "5-6 hours", "7-8 hours", "Others"];
+                            return order.indexOf(a) - order.indexOf(b);
+                          });
+
+    // Proses data: hitung persentase depresi tiap kategori
+    const sleepGroups = d3.groups(data, d => d["Sleep Duration"]);
+
+    const processedData = sleepGroups.map(([duration, records]) => {
+      const total = records.length;
+      const depressed = records.filter(d => d.Depression === "1").length;
+      return {
+        SleepDuration: duration,
+        DepressionRate: (depressed / total) * 100
+      };
+    }).filter(d => categoryOrder.includes(d.SleepDuration));
+
+    // Sort sesuai urutan kategori
+    processedData.sort((a, b) => categoryOrder.indexOf(a.SleepDuration) - categoryOrder.indexOf(b.SleepDuration));
+
+    // Skala X & Y
+    const x = d3.scalePoint()
+                .domain(categoryOrder)
+                .range([0, width])
+                .padding(0.5);
+
+    const y = d3.scaleLinear()
+                .domain([0, 100])
+                .range([height, 0]);
+
+    // Garis
+    const line = d3.line()
+                   .x(d => x(d.SleepDuration))
+                   .y(d => y(d.DepressionRate));
+
+    svg.append("path")
+       .datum(processedData)
+       .attr("fill", "none")
+       .attr("stroke", "steelblue")
+       .attr("stroke-width", 2)
+       .attr("d", line);
+
+    // Titik-titik
+    svg.selectAll("circle")
+       .data(processedData)
+       .enter()
+       .append("circle")
+       .attr("cx", d => x(d.SleepDuration))
+       .attr("cy", d => y(d.DepressionRate))
+       .attr("r", 5)
+       .attr("fill", "red")
+       .on("mouseover", (event, d) => {
+          tooltip.style("opacity", 1)
+                 .html(`<strong>${d.SleepDuration}</strong><br>${d.DepressionRate.toFixed(1)}%`)
+                 .style("left", (event.pageX + 10) + "px")
+                 .style("top", (event.pageY - 30) + "px");
+       })
+       .on("mouseout", () => tooltip.style("opacity", 0));
+
+    // X Axis
+    svg.append("g")
+       .attr("transform", `translate(0, ${height})`)
+       .call(d3.axisBottom(x))
+       .selectAll("text")
+       .attr("transform", "rotate(0)")
+       .style("text-anchor", "middle");
+
+    // Y Axis
+    svg.append("g")
+       .call(d3.axisLeft(y));
+
+    // Label X
+    svg.append("text")
+       .attr("x", width / 2)
+       .attr("y", height + 40)
+       .attr("class", "axis-label")
+       .style("text-anchor", "middle")
+       .text("Durasi Tidur");
+
+    // Label Y
+    svg.append("text")
+       .attr("transform", "rotate(-90)")
+       .attr("y", -45)
+       .attr("x", -height / 2)
+       .attr("class", "axis-label")
+       .style("text-anchor", "middle")
+       .text("Persentase Depresi (%)");
+
+  });
+
+</script>
+</body>
+</html>

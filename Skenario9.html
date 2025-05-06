@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Violin Plot Depresi Mahasiswa</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f9f9f9;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    h2 {
+      margin-bottom: 20px; /* Space between title and chart */
+    }
+    .violin {
+      fill-opacity: 0.6;
+    }
+    .label {
+      font-size: 10px;
+      fill: #333;
+    }
+    #chart {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <h2>Violin Plot Depresi Mahasiswa per Gender</h2>
+  <svg id="chart" width="900" height="500"></svg>
+
+  <script>
+    const margin = { top: 30, right: 50, bottom: 100, left: 100 };
+    const width = 800 - margin.left - margin.right;
+    const height = 400 - margin.top - margin.bottom;
+
+    const svg = d3.select("#chart")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom)
+      .append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    d3.csv("Data/Student Depression Dataset.csv").then(data => {
+      data.forEach(d => {
+        d["Academic Pressure"] = +d["Academic Pressure"];
+        d["Depression"] = +d["Depression"];
+      });
+
+      const genders = [...new Set(data.map(d => d.Gender))];
+      const depressions = [...new Set(data.map(d => d.Depression))];
+
+      const xGroup = d3.scaleBand()
+        .domain(depressions)
+        .range([0, width])
+        .padding(0.3);
+
+      const y = d3.scaleLinear()
+        .domain([0, d3.max(data, d => d["Academic Pressure"])] )
+        .range([height, 0]);
+
+      const color = d3.scaleOrdinal()
+        .domain(genders)
+        .range(["#1f77b4", "#ff69b4"]);
+
+      // X Axis
+      svg.append("g")
+        .attr("transform", `translate(0,${height})`)
+        .call(d3.axisBottom(xGroup));
+
+      // Y Axis
+      svg.append("g")
+        .call(d3.axisLeft(y));
+
+      // Kernel Density Estimation function
+      function kernelDensityEstimator(kernel, X) {
+        return function(V) {
+          return X.map(function(x) {
+            return [x, d3.mean(V, v => kernel(x - v))];
+          });
+        };
+      }
+
+      function kernelEpanechnikov(k) {
+        return function(v) {
+          v = v / k;
+          return Math.abs(v) <= 1 ? 0.75 * (1 - v * v) / k : 0;
+        };
+      }
+
+      // Create Violin per Depression & Gender
+      depressions.forEach(dep => {
+        genders.forEach((g, i) => {
+          const groupData = data
+            .filter(d => d.Depression == dep && d.Gender == g)
+            .map(d => d["Academic Pressure"]);
+
+          if (groupData.length === 0) return;
+
+          const kde = kernelDensityEstimator(kernelEpanechnikov(0.4), y.ticks(20));
+          const density = kde(groupData);
+
+          const maxDensity = d3.max(density, d => d[1]);
+
+          const xNum = d3.scaleLinear()
+            .range([0, (xGroup.bandwidth()/2) - 5])
+            .domain([0, maxDensity]);
+
+          const area = d3.area()
+            .x0(d => xGroup(dep) + (i === 0 ? -1 : 1) * xNum(d[1]))
+            .x1(d => xGroup(dep))
+            .y(d => y(d[0]))
+            .curve(d3.curveCatmullRom);
+
+          svg.append("path")
+            .datum(density)
+            .attr("fill", color(g))
+            .attr("class", "violin")
+            .attr("d", area);
+
+          // Display count of students at each Academic Pressure value
+          const pressureValues = [...new Set(groupData)];
+          pressureValues.forEach(pv => {
+            const count = groupData.filter(d => d === pv).length;
+            svg.append("text")
+              .attr("x", xGroup(dep) + (i === 0 ? -45 : 45))
+              .attr("y", y(pv) + 3)
+              .attr("text-anchor", "middle")
+              .attr("font-size", "10px")
+              .text(count);
+          });
+        });
+      });
+
+      // Legend Gender
+      const legend = svg.selectAll(".legend")
+        .data(genders)
+        .enter()
+        .append("g")
+        .attr("transform", (d, i) => `translate(${width - 100},${i * 20})`);
+
+      legend.append("rect")
+        .attr("x", 0)
+        .attr("y", -10)
+        .attr("width", 12)
+        .attr("height", 12)
+        .attr("fill", d => color(d));
+
+      legend.append("text")
+        .attr("x", 20)
+        .attr("y", 0)
+        .attr("dy", "0.32em")
+        .text(d => d);
+
+      // Label X Axis
+      svg.append("text")
+        .attr("text-anchor", "middle")
+        .attr("x", width / 2)
+        .attr("y", height + 50)
+        .attr("font-size", "14px")
+        .text("Depression");
+
+      // Label Y Axis
+      svg.append("text")
+        .attr("text-anchor", "middle")
+        .attr("transform", "rotate(-90)")
+        .attr("x", -height / 2)
+        .attr("y", -60)
+        .attr("font-size", "14px")
+        .text("Academic Pressure");
+    });
+  </script>
+</body>
+</html>

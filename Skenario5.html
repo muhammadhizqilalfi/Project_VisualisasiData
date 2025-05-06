@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Korelasi antara Tekanan Akademik dan Faktor Kesejahteraan Mental</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: sans-serif;
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #f9f9f9;
+      flex-direction: column;
+    }
+
+    h2 {
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    svg {
+      background-color: white;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      border-radius: 10px;
+    }
+
+    .cell {
+      stroke: #fff;
+    }
+
+    .label {
+      font-size: 12px;
+      text-anchor: middle;
+      dominant-baseline: central;
+      fill: black;
+    }
+
+    .tooltip {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.75);
+      color: white;
+      padding: 6px 10px;
+      border-radius: 5px;
+      pointer-events: none;
+      font-size: 12px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .axis-label {
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h2>Korelasi antara Tekanan Akademik dan Faktor Kesejahteraan Mental</h2>
+  <div id="heatmap"></div>
+  <div class="tooltip" id="tooltip"></div> <!-- Tooltip div -->
+
+  <script>
+    const margin = { top: 70, right: 90, bottom: 120, left: 160 },
+          width = 500,
+          height = 300;
+
+    const yVars = [
+      "Academic Pressure",
+      "CGPA",
+      "Study Satisfaction",
+      "Work/Study Hours"
+    ];
+
+    const xVars = [
+      "Work Pressure",
+      "Job Satisfaction",
+      "Financial Stress",
+      "Depression"
+    ];
+
+    const x = d3.scaleBand().range([0, width]).domain(xVars).padding(0.05);
+    const y = d3.scaleBand().range([0, height]).domain(yVars).padding(0.05);
+    const color = d3.scaleLinear()
+      .domain([-1, 0, 1])
+      .range(["#3b4cc0", "#ffffff", "#b40426"]);
+
+    const svg = d3.select("#heatmap")
+      .append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom)
+      .append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    // Tooltip element
+    const tooltip = d3.select("#tooltip");
+
+    d3.csv("Data/Student Depression Dataset.csv").then(data => {
+      // Convert string to number
+      data.forEach(d => {
+        [...xVars, ...yVars].forEach(v => d[v] = +d[v]);
+      });
+
+      function pearson(a, b) {
+        const meanA = d3.mean(a);
+        const meanB = d3.mean(b);
+        const numerator = d3.sum(a.map((d, i) => (d - meanA) * (b[i] - meanB)));
+        const denominator = Math.sqrt(
+          d3.sum(a.map(d => (d - meanA) ** 2)) *
+          d3.sum(b.map(d => (d - meanB) ** 2))
+        );
+        return numerator / denominator;
+      }
+
+      const matrix = [];
+      for (let yVar of yVars) {
+        for (let xVar of xVars) {
+          const val = pearson(data.map(d => d[yVar]), data.map(d => d[xVar]));
+          matrix.push({ x: xVar, y: yVar, value: val });
+        }
+      }
+
+      // Axis Y
+      svg.append("g")
+      .call(d3.axisLeft(y).tickSize(0))
+      .selectAll("text")
+      .attr("transform", "rotate(0)"); // Rotasi teks untuk menjaga posisi label sumbu Y tetap teratur
+
+      // Axis X (Bottom)
+      svg.append("g")
+        .attr("transform", `translate(0, ${height})`)
+        .call(d3.axisBottom(x).tickSize(0))
+        .selectAll("text")
+        .attr("transform", "rotate(-45)")
+        .style("text-anchor", "end");
+
+      // Cells
+      svg.selectAll("rect")
+        .data(matrix)
+        .enter()
+        .append("rect")
+        .attr("x", d => x(d.x))
+        .attr("y", d => y(d.y))
+        .attr("width", x.bandwidth())
+        .attr("height", y.bandwidth())
+        .attr("fill", d => color(d.value))
+        .attr("class", "cell")
+        .on("mouseover", (event, d) => {
+          // Display percentage in the tooltip
+          const percentage = (d.value * 100).toFixed(2); // Convert to percentage
+          tooltip.transition().duration(200).style("opacity", 1);
+          tooltip.html(`Korelasi antara<br/>${d.y} dan ${d.x}: ${percentage}%`)
+                 .style("left", (event.pageX + 10) + "px")
+                 .style("top", (event.pageY - 28) + "px");
+        })
+        .on("mouseout", () => {
+          tooltip.transition().duration(500).style("opacity", 0);
+        });
+
+      // Correlation value labels
+      svg.selectAll("text.label")
+        .data(matrix)
+        .enter()
+        .append("text")
+        .attr("x", d => x(d.x) + x.bandwidth() / 2)
+        .attr("y", d => y(d.y) + y.bandwidth() / 2)
+        .text(d => (d.value * 100).toFixed(2) + "%")  // Show percentage in the cells
+        .attr("class", "label");
+
+      // X Axis Label
+      svg.append("text")
+        .attr("x", width / 2)
+        .attr("y", height + margin.bottom - 30)
+        .attr("class", "axis-label")
+        .style("text-anchor", "middle")
+        .text("Faktor Sosial");
+
+      // Y Axis Label
+      svg.append("text")
+        .attr("x", -height / 2)
+        .attr("y", -margin.left + 40)
+        .attr("transform", "rotate(-90)")
+        .attr("class", "axis-label")
+        .style("text-anchor", "middle")
+        .text("Tekanan Akademik dan Kesejahteraan Mental");
+
+    });
+  </script>
+</body>
+</html>
