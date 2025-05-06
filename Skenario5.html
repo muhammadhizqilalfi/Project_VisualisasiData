@@ -52,10 +52,6 @@
       opacity: 0;
       transition: opacity 0.2s;
     }
-
-    .axis-label {
-      font-weight: bold;
-    }
   </style>
 </head>
 <body>
@@ -64,7 +60,7 @@
   <div class="tooltip" id="tooltip"></div> <!-- Tooltip div -->
 
   <script>
-    const margin = { top: 70, right: 90, bottom: 120, left: 160 },
+    const margin = { top: 30, right: 30, bottom: 100, left: 160 },
           width = 500,
           height = 300;
 
@@ -98,7 +94,7 @@
     // Tooltip element
     const tooltip = d3.select("#tooltip");
 
-    d3.csv("Data/Student Depression Dataset.csv").then(data => {
+    d3.csv("Student Depression Dataset.csv").then(data => {
       // Convert string to number
       data.forEach(d => {
         [...xVars, ...yVars].forEach(v => d[v] = +d[v]);
@@ -125,9 +121,7 @@
 
       // Axis Y
       svg.append("g")
-      .call(d3.axisLeft(y).tickSize(0))
-      .selectAll("text")
-      .attr("transform", "rotate(0)"); // Rotasi teks untuk menjaga posisi label sumbu Y tetap teratur
+        .call(d3.axisLeft(y).tickSize(0));
 
       // Axis X (Bottom)
       svg.append("g")
@@ -149,10 +143,8 @@
         .attr("fill", d => color(d.value))
         .attr("class", "cell")
         .on("mouseover", (event, d) => {
-          // Display percentage in the tooltip
-          const percentage = (d.value * 100).toFixed(2); // Convert to percentage
           tooltip.transition().duration(200).style("opacity", 1);
-          tooltip.html(`Korelasi antara<br/>${d.y} dan ${d.x}: ${percentage}%`)
+          tooltip.html(`Korelasi antara<br/>${d.y} dan ${d.x}: ${d.value.toFixed(2)}`)
                  .style("left", (event.pageX + 10) + "px")
                  .style("top", (event.pageY - 28) + "px");
         })
@@ -167,26 +159,8 @@
         .append("text")
         .attr("x", d => x(d.x) + x.bandwidth() / 2)
         .attr("y", d => y(d.y) + y.bandwidth() / 2)
-        .text(d => (d.value * 100).toFixed(2) + "%")  // Show percentage in the cells
+        .text(d => d.value.toFixed(2))
         .attr("class", "label");
-
-      // X Axis Label
-      svg.append("text")
-        .attr("x", width / 2)
-        .attr("y", height + margin.bottom - 30)
-        .attr("class", "axis-label")
-        .style("text-anchor", "middle")
-        .text("Faktor Sosial");
-
-      // Y Axis Label
-      svg.append("text")
-        .attr("x", -height / 2)
-        .attr("y", -margin.left + 40)
-        .attr("transform", "rotate(-90)")
-        .attr("class", "axis-label")
-        .style("text-anchor", "middle")
-        .text("Tekanan Akademik dan Kesejahteraan Mental");
-
     });
   </script>
 </body>
