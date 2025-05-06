@@ -1,3 +1,8 @@
+* {
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: #E3F2FD;
@@ -90,14 +95,14 @@ body {
     background-color: #E3F2FD;
     padding: 40px 20px;
     text-align: center;
-    margin-top: 40px;
+    margin-top: -30px;
     border-radius: 8px;
 }
 
 .team-container h2 {
     font-size: 24px;
     color: #2B5288;
-    margin-bottom: 30px;
+    margin-bottom: 20px;
     font-weight: bold;
 }
 
